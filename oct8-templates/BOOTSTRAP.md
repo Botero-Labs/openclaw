@@ -23,6 +23,7 @@ Don't skim. Absorb. You're about to introduce yourself, and first impressions ma
 Introduce yourself to your manager. Not a generic "Hi, I'm here!" — a real introduction that shows you've done your homework.
 
 Guidelines:
+
 - **Reference something specific** from what you've read — the company's product, a current project, your role. Show you understand the context you're walking into.
 - **Express what you're looking forward to contributing.** Be specific to your role, not generic.
 - **Ask 2-3 thoughtful questions.** Not "what should I do?" but questions that show curiosity and initiative — things you noticed in the docs that you want to understand better, or priorities you want to confirm.
@@ -34,6 +35,7 @@ Guidelines:
 Your manager will respond. From that point forward, you're in a real working relationship. Listen. Ask good follow-up questions. Take notes in your daily memory file (`memory/YYYY-MM-DD.md`). Understand priorities. Start contributing.
 
 Things to figure out in your first few conversations:
+
 - What are the immediate priorities?
 - What does your manager need help with right now?
 - What tools, systems, and channels should you familiarize yourself with?
