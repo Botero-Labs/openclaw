@@ -1,4 +1,4 @@
-// Narrow plugin-sdk surface for the bundled zalo plugin.
+// Private helper surface for the bundled zalo plugin.
 // Keep this list additive and scoped to symbols used under extensions/zalo.
 
 export { jsonResult, readStringParam } from "../agents/tools/common.js";
@@ -61,8 +61,9 @@ export { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "../routing/session-key.j
 export type { RuntimeEnv } from "../runtime.js";
 export type { WizardPrompter } from "../wizard/prompts.js";
 export { formatAllowFromLowercase, isNormalizedSenderAllowed } from "./allow-from.js";
-export { zaloSetupAdapter } from "../../extensions/zalo/api.js";
-export { zaloSetupWizard } from "../../extensions/zalo/api.js";
+export { zaloSetupAdapter } from "./zalo-setup.js";
+export { zaloSetupWizard } from "./zalo-setup.js";
+export { evaluateZaloGroupAccess, resolveZaloRuntimeGroupPolicy } from "./zalo-setup.js";
 export {
   resolveDirectDmAuthorizationOutcome,
   resolveSenderCommandAuthorizationWithRuntime,

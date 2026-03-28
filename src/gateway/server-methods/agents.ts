@@ -23,7 +23,6 @@ import {
   ensureAgentWorkspace,
   isWorkspaceSetupCompleted,
 } from "../../agents/workspace.js";
-import { movePathToTrash } from "../../browser/trash.js";
 import {
   applyAgentConfig,
   findAgentEntryIndex,
@@ -33,9 +32,15 @@ import {
 import { loadConfig, writeConfigFile } from "../../config/config.js";
 import { resolveSessionTranscriptsDirForAgent } from "../../config/sessions/paths.js";
 import { sameFileIdentity } from "../../infra/file-identity.js";
-import { SafeOpenError, readLocalFileSafely, writeFileWithinRoot } from "../../infra/fs-safe.js";
+import {
+  appendFileWithinRoot,
+  SafeOpenError,
+  readLocalFileSafely,
+  writeFileWithinRoot,
+} from "../../infra/fs-safe.js";
 import { assertNoPathAliasEscape } from "../../infra/path-alias-guards.js";
 import { isNotFoundPathError } from "../../infra/path-guards.js";
+import { movePathToTrash } from "../../plugin-sdk/browser-runtime.js";
 import { DEFAULT_AGENT_ID, normalizeAgentId } from "../../routing/session-key.js";
 import { resolveUserPath } from "../../utils.js";
 import {
@@ -71,6 +76,35 @@ const BOOTSTRAP_FILE_NAMES = [
 const BOOTSTRAP_FILE_NAMES_POST_ONBOARDING = BOOTSTRAP_FILE_NAMES.filter(
   (name) => name !== DEFAULT_BOOTSTRAP_FILENAME,
 );
+
+const agentsHandlerDeps = {
+  isWorkspaceSetupCompleted,
+  readLocalFileSafely,
+  resolveAgentWorkspaceFilePath,
+  appendFileWithinRoot,
+  writeFileWithinRoot,
+};
+
+export const __testing = {
+  setDepsForTests(
+    overrides: Partial<{
+      isWorkspaceSetupCompleted: typeof isWorkspaceSetupCompleted;
+      readLocalFileSafely: typeof readLocalFileSafely;
+      resolveAgentWorkspaceFilePath: typeof resolveAgentWorkspaceFilePath;
+      appendFileWithinRoot: typeof appendFileWithinRoot;
+      writeFileWithinRoot: typeof writeFileWithinRoot;
+    }>,
+  ) {
+    Object.assign(agentsHandlerDeps, overrides);
+  },
+  resetDepsForTests() {
+    agentsHandlerDeps.isWorkspaceSetupCompleted = isWorkspaceSetupCompleted;
+    agentsHandlerDeps.readLocalFileSafely = readLocalFileSafely;
+    agentsHandlerDeps.resolveAgentWorkspaceFilePath = resolveAgentWorkspaceFilePath;
+    agentsHandlerDeps.appendFileWithinRoot = appendFileWithinRoot;
+    agentsHandlerDeps.writeFileWithinRoot = writeFileWithinRoot;
+  },
+};
 
 const MEMORY_FILE_NAMES = [DEFAULT_MEMORY_FILENAME, DEFAULT_MEMORY_ALT_FILENAME] as const;
 
@@ -428,7 +462,7 @@ async function resolveWorkspaceFilePathOrRespond(params: {
   workspaceDir: string;
   name: string;
 }): Promise<ResolvedWorkspaceFilePath | undefined> {
-  const resolvedPath = await resolveAgentWorkspaceFilePath({
+  const resolvedPath = await agentsHandlerDeps.resolveAgentWorkspaceFilePath({
     workspaceDir: params.workspaceDir,
     name: params.name,
     allowMissing: true,
@@ -464,6 +498,39 @@ function respondWorkspaceFileMissing(params: {
     },
     undefined,
   );
+}
+
+async function ensureWorkspaceFileReadyOrRespond(params: {
+  respond: RespondFn;
+  workspaceDir: string;
+  name: string;
+}): Promise<boolean> {
+  await fs.mkdir(params.workspaceDir, { recursive: true });
+  const resolvedPath = await resolveWorkspaceFilePathOrRespond(params);
+  return resolvedPath !== undefined;
+}
+
+async function appendWorkspaceFileOrRespond(params: {
+  respond: RespondFn;
+  workspaceDir: string;
+  name: string;
+  content: string;
+}): Promise<boolean> {
+  try {
+    await agentsHandlerDeps.appendFileWithinRoot({
+      rootDir: params.workspaceDir,
+      relativePath: params.name,
+      data: params.content,
+      encoding: "utf8",
+    });
+  } catch (err) {
+    if (err instanceof SafeOpenError) {
+      respondWorkspaceFileUnsafe(params.respond, params.name);
+      return false;
+    }
+    throw err;
+  }
+  return true;
 }
 
 export const agentsHandlers: GatewayRequestHandlers = {
@@ -538,13 +605,10 @@ export const agentsHandlers: GatewayRequestHandlers = {
     await ensureAgentWorkspace({ dir: workspaceDir, ensureBootstrapFiles: !skipBootstrap });
     await fs.mkdir(resolveSessionTranscriptsDirForAgent(agentId), { recursive: true });
 
-    await writeConfigFile(nextConfig);
-
     // Always write Name to IDENTITY.md; optionally include emoji/avatar.
     const safeName = sanitizeIdentityLine(rawName);
     const emoji = resolveOptionalStringParam(params.emoji);
     const avatar = resolveOptionalStringParam(params.avatar);
-    const identityPath = path.join(workspaceDir, DEFAULT_IDENTITY_FILENAME);
     const lines = [
       "",
       `- Name: ${safeName}`,
@@ -552,7 +616,28 @@ export const agentsHandlers: GatewayRequestHandlers = {
       ...(avatar ? [`- Avatar: ${sanitizeIdentityLine(avatar)}`] : []),
       "",
     ];
-    await fs.appendFile(identityPath, lines.join("\n"), "utf-8");
+    if (
+      !(await ensureWorkspaceFileReadyOrRespond({
+        respond,
+        workspaceDir,
+        name: DEFAULT_IDENTITY_FILENAME,
+      }))
+    ) {
+      return;
+    }
+
+    if (
+      !(await appendWorkspaceFileOrRespond({
+        respond,
+        workspaceDir,
+        name: DEFAULT_IDENTITY_FILENAME,
+        content: lines.join("\n"),
+      }))
+    ) {
+      return;
+    }
+
+    await writeConfigFile(nextConfig);
 
     respond(true, { ok: true, agentId, name: rawName, workspace: workspaceDir }, undefined);
   },
@@ -586,19 +671,41 @@ export const agentsHandlers: GatewayRequestHandlers = {
       ...(model ? { model } : {}),
     });
 
-    await writeConfigFile(nextConfig);
-
     if (workspaceDir) {
       const skipBootstrap = Boolean(nextConfig.agents?.defaults?.skipBootstrap);
       await ensureAgentWorkspace({ dir: workspaceDir, ensureBootstrapFiles: !skipBootstrap });
     }
 
-    if (avatar) {
-      const workspace = workspaceDir ?? resolveAgentWorkspaceDir(nextConfig, agentId);
-      await fs.mkdir(workspace, { recursive: true });
-      const identityPath = path.join(workspace, DEFAULT_IDENTITY_FILENAME);
-      await fs.appendFile(identityPath, `\n- Avatar: ${sanitizeIdentityLine(avatar)}\n`, "utf-8");
+    const identityWorkspaceDir = avatar ? resolveAgentWorkspaceDir(nextConfig, agentId) : undefined;
+    if (
+      identityWorkspaceDir &&
+      !(await ensureWorkspaceFileReadyOrRespond({
+        respond,
+        workspaceDir: identityWorkspaceDir,
+        name: DEFAULT_IDENTITY_FILENAME,
+      }))
+    ) {
+      return;
     }
+
+    if (avatar) {
+      if (!identityWorkspaceDir) {
+        respondWorkspaceFileUnsafe(respond, DEFAULT_IDENTITY_FILENAME);
+        return;
+      }
+      if (
+        !(await appendWorkspaceFileOrRespond({
+          respond,
+          workspaceDir: identityWorkspaceDir,
+          name: DEFAULT_IDENTITY_FILENAME,
+          content: `\n- Avatar: ${sanitizeIdentityLine(avatar)}\n`,
+        }))
+      ) {
+        return;
+      }
+    }
+
+    await writeConfigFile(nextConfig);
 
     respond(true, { ok: true, agentId }, undefined);
   },
@@ -664,7 +771,7 @@ export const agentsHandlers: GatewayRequestHandlers = {
     const workspaceDir = resolveAgentWorkspaceDir(cfg, agentId);
     let hideBootstrap = false;
     try {
-      hideBootstrap = await isWorkspaceSetupCompleted(workspaceDir);
+      hideBootstrap = await agentsHandlerDeps.isWorkspaceSetupCompleted(workspaceDir);
     } catch {
       // Fall back to showing BOOTSTRAP if workspace state cannot be read.
     }
@@ -696,7 +803,7 @@ export const agentsHandlers: GatewayRequestHandlers = {
     }
     let safeRead: Awaited<ReturnType<typeof readLocalFileSafely>>;
     try {
-      safeRead = await readLocalFileSafely({ filePath: resolvedPath.ioPath });
+      safeRead = await agentsHandlerDeps.readLocalFileSafely({ filePath: resolvedPath.ioPath });
     } catch (err) {
       if (err instanceof SafeOpenError && err.code === "not-found") {
         respondWorkspaceFileMissing({ respond, agentId, workspaceDir, name, filePath });
@@ -753,7 +860,7 @@ export const agentsHandlers: GatewayRequestHandlers = {
       return;
     }
     try {
-      await writeFileWithinRoot({
+      await agentsHandlerDeps.writeFileWithinRoot({
         rootDir: resolvedPath.workspaceReal,
         relativePath: relativeWritePath,
         data: content,
