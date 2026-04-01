@@ -2,17 +2,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { expect, vi } from "vitest";
-import {
-  __testing as discordThreadBindingTesting,
-  createThreadBindingManager as createDiscordThreadBindingManager,
-} from "../../../../extensions/discord/runtime-api.js";
-import { createFeishuThreadBindingManager } from "../../../../extensions/feishu/api.js";
-import {
-  createMatrixThreadBindingManager,
-  resetMatrixThreadBindingsForTests,
-} from "../../../../extensions/matrix/api.js";
-import { setMatrixRuntime } from "../../../../extensions/matrix/index.js";
-import { createTelegramThreadBindingManager } from "../../../../extensions/telegram/runtime-api.js";
+import { createBlueBubblesConversationBindingManager } from "../../../../extensions/bluebubbles/api.js";
+import { createIMessageConversationBindingManager } from "../../../../extensions/imessage/api.js";
 import type { OpenClawConfig } from "../../../config/config.js";
 import {
   getSessionBindingService,
@@ -20,16 +11,33 @@ import {
   type SessionBindingRecord,
 } from "../../../infra/outbound/session-binding-service.js";
 import {
+  discordThreadBindingTesting,
+  createDiscordThreadBindingManager,
+} from "../../../plugin-sdk/discord.js";
+import { createFeishuThreadBindingManager } from "../../../plugin-sdk/feishu.js";
+import {
+  listLineAccountIds,
   resolveDefaultLineAccountId,
   resolveLineAccount,
-  listLineAccountIds,
-} from "../../../line/accounts.js";
+} from "../../../plugin-sdk/line.js";
+import {
+  createMatrixThreadBindingManager,
+  resetMatrixThreadBindingsForTests,
+  setMatrixRuntime,
+} from "../../../plugin-sdk/matrix.js";
+import { createTelegramThreadBindingManager } from "../../../plugin-sdk/telegram-runtime.js";
 import {
   bundledChannelPlugins,
-  bundledChannelRuntimeSetters,
   requireBundledChannelPlugin,
+  setBundledChannelRuntime,
 } from "../bundled.js";
 import type { ChannelPlugin } from "../types.js";
+import {
+  channelPluginSurfaceKeys,
+  type ChannelPluginSurface,
+  sessionBindingContractChannelIds,
+  type SessionBindingContractChannelId,
+} from "./manifest.js";
 
 type PluginContractEntry = {
   id: string;
@@ -79,27 +87,6 @@ type StatusContractEntry = {
     assertSummary?: (summary: Record<string, unknown>) => void;
   }>;
 };
-
-export const channelPluginSurfaceKeys = [
-  "actions",
-  "setup",
-  "status",
-  "outbound",
-  "messaging",
-  "threading",
-  "directory",
-  "gateway",
-] as const;
-
-export type ChannelPluginSurface =
-  | "actions"
-  | "setup"
-  | "status"
-  | "outbound"
-  | "messaging"
-  | "threading"
-  | "directory"
-  | "gateway";
 
 type SurfaceContractEntry = {
   id: string;
@@ -192,7 +179,7 @@ const sendMessageMatrixMock = vi.hoisted(() =>
   })),
 );
 
-bundledChannelRuntimeSetters.setTelegramRuntime({
+setBundledChannelRuntime("telegram", {
   channel: {
     telegram: {
       messageActions: {
@@ -202,7 +189,7 @@ bundledChannelRuntimeSetters.setTelegramRuntime({
   },
 } as never);
 
-bundledChannelRuntimeSetters.setDiscordRuntime({
+setBundledChannelRuntime("discord", {
   channel: {
     discord: {
       messageActions: {
@@ -212,7 +199,7 @@ bundledChannelRuntimeSetters.setDiscordRuntime({
   },
 } as never);
 
-bundledChannelRuntimeSetters.setLineRuntime({
+setBundledChannelRuntime("line", {
   channel: {
     line: {
       listLineAccountIds,
@@ -296,6 +283,7 @@ export const actionContractRegistry: ActionsContractEntry[] = [
           "edit",
           "delete",
           "download-file",
+          "upload-file",
           "pin",
           "unpin",
           "list-pins",
@@ -325,6 +313,7 @@ export const actionContractRegistry: ActionsContractEntry[] = [
           "edit",
           "delete",
           "download-file",
+          "upload-file",
           "pin",
           "unpin",
           "list-pins",
@@ -647,9 +636,69 @@ const baseSessionBindingCfg = {
   session: { mainKey: "main", scope: "per-sender" },
 } satisfies OpenClawConfig;
 
-export const sessionBindingContractRegistry: SessionBindingContractEntry[] = [
-  {
-    id: "discord",
+const sessionBindingContractEntries: Record<
+  SessionBindingContractChannelId,
+  Omit<SessionBindingContractEntry, "id">
+> = {
+  bluebubbles: {
+    expectedCapabilities: {
+      adapterAvailable: true,
+      bindSupported: true,
+      unbindSupported: true,
+      placements: ["current"],
+    },
+    getCapabilities: () => {
+      createBlueBubblesConversationBindingManager({
+        cfg: baseSessionBindingCfg,
+        accountId: "default",
+      });
+      return getSessionBindingService().getCapabilities({
+        channel: "bluebubbles",
+        accountId: "default",
+      });
+    },
+    bindAndResolve: async () => {
+      createBlueBubblesConversationBindingManager({
+        cfg: baseSessionBindingCfg,
+        accountId: "default",
+      });
+      const service = getSessionBindingService();
+      const binding = await service.bind({
+        targetSessionKey: "agent:codex:acp:binding:bluebubbles:default:abc123",
+        targetKind: "session",
+        conversation: {
+          channel: "bluebubbles",
+          accountId: "default",
+          conversationId: "+15555550123",
+        },
+        placement: "current",
+        metadata: {
+          agentId: "codex",
+          label: "codex-main",
+        },
+      });
+      expectResolvedSessionBinding({
+        channel: "bluebubbles",
+        accountId: "default",
+        conversationId: "+15555550123",
+        targetSessionKey: "agent:codex:acp:binding:bluebubbles:default:abc123",
+      });
+      return binding;
+    },
+    unbindAndVerify: unbindAndExpectClearedSessionBinding,
+    cleanup: async () => {
+      createBlueBubblesConversationBindingManager({
+        cfg: baseSessionBindingCfg,
+        accountId: "default",
+      }).stop();
+      expectClearedSessionBinding({
+        channel: "bluebubbles",
+        accountId: "default",
+        conversationId: "+15555550123",
+      });
+    },
+  },
+  discord: {
     expectedCapabilities: {
       adapterAvailable: true,
       bindSupported: true,
@@ -711,8 +760,7 @@ export const sessionBindingContractRegistry: SessionBindingContractEntry[] = [
       });
     },
   },
-  {
-    id: "feishu",
+  feishu: {
     expectedCapabilities: {
       adapterAvailable: true,
       bindSupported: true,
@@ -766,8 +814,65 @@ export const sessionBindingContractRegistry: SessionBindingContractEntry[] = [
       });
     },
   },
-  {
-    id: "matrix",
+  imessage: {
+    expectedCapabilities: {
+      adapterAvailable: true,
+      bindSupported: true,
+      unbindSupported: true,
+      placements: ["current"],
+    },
+    getCapabilities: () => {
+      createIMessageConversationBindingManager({
+        cfg: baseSessionBindingCfg,
+        accountId: "default",
+      });
+      return getSessionBindingService().getCapabilities({
+        channel: "imessage",
+        accountId: "default",
+      });
+    },
+    bindAndResolve: async () => {
+      createIMessageConversationBindingManager({
+        cfg: baseSessionBindingCfg,
+        accountId: "default",
+      });
+      const service = getSessionBindingService();
+      const binding = await service.bind({
+        targetSessionKey: "agent:codex:acp:binding:imessage:default:abc123",
+        targetKind: "session",
+        conversation: {
+          channel: "imessage",
+          accountId: "default",
+          conversationId: "+15555550123",
+        },
+        placement: "current",
+        metadata: {
+          agentId: "codex",
+          label: "codex-main",
+        },
+      });
+      expectResolvedSessionBinding({
+        channel: "imessage",
+        accountId: "default",
+        conversationId: "+15555550123",
+        targetSessionKey: "agent:codex:acp:binding:imessage:default:abc123",
+      });
+      return binding;
+    },
+    unbindAndVerify: unbindAndExpectClearedSessionBinding,
+    cleanup: async () => {
+      createIMessageConversationBindingManager({
+        cfg: baseSessionBindingCfg,
+        accountId: "default",
+      }).stop();
+      expectClearedSessionBinding({
+        channel: "imessage",
+        accountId: "default",
+        conversationId: "+15555550123",
+      });
+    },
+  },
+  matrix: {
     expectedCapabilities: {
       adapterAvailable: true,
       bindSupported: true,
@@ -817,8 +922,7 @@ export const sessionBindingContractRegistry: SessionBindingContractEntry[] = [
       });
     },
   },
-  {
-    id: "telegram",
+  telegram: {
     expectedCapabilities: {
       adapterAvailable: true,
       bindSupported: true,
@@ -879,4 +983,10 @@ export const sessionBindingContractRegistry: SessionBindingContractEntry[] = [
       });
     },
   },
-];
+};
+
+export const sessionBindingContractRegistry: SessionBindingContractEntry[] =
+  sessionBindingContractChannelIds.map((id) => ({
+    id,
+    ...sessionBindingContractEntries[id],
+  }));

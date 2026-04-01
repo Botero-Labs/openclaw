@@ -1,24 +1,25 @@
-import { resolveDualTextControlCommandGate } from "openclaw/plugin-sdk/channel-runtime";
-import { logInboundDrop } from "openclaw/plugin-sdk/channel-runtime";
+import {
+  buildMentionRegexes,
+  type EnvelopeFormatOptions,
+  formatInboundEnvelope,
+  formatInboundFromLabel,
+  logInboundDrop,
+  matchesMentionPatterns,
+  resolveEnvelopeFormatOptions,
+} from "openclaw/plugin-sdk/channel-inbound";
+import { hasControlCommand } from "openclaw/plugin-sdk/command-auth";
+import { resolveDualTextControlCommandGate } from "openclaw/plugin-sdk/command-auth";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
 import {
   resolveChannelGroupPolicy,
   resolveChannelGroupRequireMention,
 } from "openclaw/plugin-sdk/config-runtime";
-import { hasControlCommand } from "openclaw/plugin-sdk/reply-runtime";
-import {
-  formatInboundEnvelope,
-  formatInboundFromLabel,
-  resolveEnvelopeFormatOptions,
-  type EnvelopeFormatOptions,
-} from "openclaw/plugin-sdk/reply-runtime";
 import {
   buildPendingHistoryContextFromMap,
   recordPendingHistoryEntryIfEnabled,
   type HistoryEntry,
-} from "openclaw/plugin-sdk/reply-runtime";
+} from "openclaw/plugin-sdk/reply-history";
 import { finalizeInboundContext } from "openclaw/plugin-sdk/reply-runtime";
-import { buildMentionRegexes, matchesMentionPatterns } from "openclaw/plugin-sdk/reply-runtime";
 import { resolveAgentRoute } from "openclaw/plugin-sdk/routing";
 import {
   DM_GROUP_ACCESS_REASON,
@@ -26,6 +27,7 @@ import {
 } from "openclaw/plugin-sdk/security-runtime";
 import { sanitizeTerminalText } from "openclaw/plugin-sdk/text-runtime";
 import { truncateUtf16Safe } from "openclaw/plugin-sdk/text-runtime";
+import { resolveIMessageConversationRoute } from "../conversation-route.js";
 import {
   formatIMessageChatTarget,
   isAllowedIMessageSender,
@@ -211,14 +213,13 @@ export function resolveIMessageInboundDecision(params: {
     return { kind: "drop", reason: "group id not in allowlist" };
   }
 
-  const route = resolveAgentRoute({
+  const route = resolveIMessageConversationRoute({
     cfg: params.cfg,
-    channel: "imessage",
     accountId: params.accountId,
-    peer: {
-      kind: isGroup ? "group" : "direct",
-      id: isGroup ? String(chatId ?? "unknown") : senderNormalized,
-    },
+    isGroup,
+    peerId: isGroup ? String(chatId ?? "unknown") : senderNormalized,
+    sender,
+    chatId,
   });
   const mentionRegexes = buildMentionRegexes(params.cfg, route.agentId);
   const messageText = params.messageText.trim();

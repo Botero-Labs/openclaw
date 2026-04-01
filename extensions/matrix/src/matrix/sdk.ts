@@ -8,9 +8,9 @@ import {
   createClient as createMatrixJsClient,
   type MatrixClient as MatrixJsClient,
   type MatrixEvent,
-} from "matrix-js-sdk";
+} from "matrix-js-sdk/lib/matrix.js";
 import { VerificationMethod } from "matrix-js-sdk/lib/types.js";
-import { KeyedAsyncQueue } from "openclaw/plugin-sdk/keyed-async-queue";
+import { KeyedAsyncQueue } from "openclaw/plugin-sdk/core";
 import type { SsrFPolicy } from "../runtime-api.js";
 import { resolveMatrixRoomKeyBackupReadinessError } from "./backup-health.js";
 import { FileBackedMatrixSyncStore } from "./client/file-sync-store.js";
@@ -195,8 +195,8 @@ export class MatrixClient {
   private stopPersistPromise: Promise<void> | null = null;
 
   readonly dms = {
-    update: async (): Promise<void> => {
-      await this.refreshDmCache();
+    update: async (): Promise<boolean> => {
+      return await this.refreshDmCache();
     },
     isDm: (roomId: string): boolean => this.dmRoomIds.has(roomId),
   };
@@ -365,11 +365,21 @@ export class MatrixClient {
     await this.startSyncSession({ bootstrapCrypto: false });
   }
 
-  stop(): void {
+  stopSyncWithoutPersist(): void {
     if (this.idbPersistTimer) {
       clearInterval(this.idbPersistTimer);
       this.idbPersistTimer = null;
     }
+    this.client.stopClient();
+    this.started = false;
+  }
+
+  async drainPendingDecryptions(reason = "matrix client shutdown"): Promise<void> {
+    await this.decryptBridge.drainPendingDecryptions(reason);
+  }
+
+  stop(): void {
+    this.stopSyncWithoutPersist();
     this.decryptBridge.stop();
     // Final persist on shutdown
     this.syncStore?.markCleanShutdown();
@@ -380,8 +390,6 @@ export class MatrixClient {
       }).catch(noop),
       this.syncStore?.flush().catch(noop),
     ]).then(() => undefined);
-    this.client.stopClient();
-    this.started = false;
   }
 
   async stopAndPersist(): Promise<void> {
@@ -1502,11 +1510,11 @@ export class MatrixClient {
     }
   }
 
-  private async refreshDmCache(): Promise<void> {
+  private async refreshDmCache(): Promise<boolean> {
     const direct = await this.getAccountData("m.direct");
     this.dmRoomIds.clear();
     if (!direct || typeof direct !== "object") {
-      return;
+      return false;
     }
     for (const value of Object.values(direct)) {
       if (!Array.isArray(value)) {
@@ -1518,5 +1526,6 @@ export class MatrixClient {
         }
       }
     }
+    return true;
   }
 }

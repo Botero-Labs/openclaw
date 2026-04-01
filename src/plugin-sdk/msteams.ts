@@ -1,4 +1,4 @@
-// Narrow plugin-sdk surface for the bundled msteams plugin.
+// Private helper surface for the bundled msteams plugin.
 // Keep this list additive and scoped to symbols used under extensions/msteams.
 
 import { createOptionalChannelSetupSurface } from "./channel-setup.js";
@@ -44,6 +44,7 @@ export {
 } from "../channels/plugins/setup-wizard-helpers.js";
 export { PAIRING_APPROVED_MESSAGE } from "../channels/plugins/pairing-message.js";
 export { resolveOutboundMediaUrls, resolveSendableOutboundReplyParts } from "./reply-payload.js";
+export { chunkTextForOutbound } from "./text-chunking.js";
 export type {
   BaseProbeResult,
   ChannelDirectoryEntry,

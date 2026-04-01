@@ -31,6 +31,11 @@ export const DEFAULT_HEARTBEAT_FILENAME = "HEARTBEAT.md";
 export const DEFAULT_BOOTSTRAP_FILENAME = "BOOTSTRAP.md";
 export const DEFAULT_MEMORY_FILENAME = "MEMORY.md";
 export const DEFAULT_MEMORY_ALT_FILENAME = "memory.md";
+export const DEFAULT_COMPANY_FILENAME = "COMPANY.md"; // OCT8: digital coworker file (ADR-008)
+export const DEFAULT_ROLE_PROFILE_FILENAME = "ROLE_PROFILE.md"; // OCT8: digital coworker file (ADR-008)
+export const DEFAULT_MANAGER_FILENAME = "MANAGER.md"; // OCT8: digital coworker file (ADR-008)
+export const DEFAULT_TEAM_FILENAME = "TEAM.md"; // OCT8: digital coworker file (ADR-008)
+export const DEFAULT_CONTACTS_FILENAME = "CONTACTS.md"; // OCT8: digital coworker file (ADR-008)
 const WORKSPACE_STATE_DIRNAME = ".openclaw";
 const WORKSPACE_STATE_FILENAME = "workspace-state.json";
 const WORKSPACE_STATE_VERSION = 1;
@@ -138,7 +143,12 @@ export type WorkspaceBootstrapFileName =
   | typeof DEFAULT_HEARTBEAT_FILENAME
   | typeof DEFAULT_BOOTSTRAP_FILENAME
   | typeof DEFAULT_MEMORY_FILENAME
-  | typeof DEFAULT_MEMORY_ALT_FILENAME;
+  | typeof DEFAULT_MEMORY_ALT_FILENAME
+  | typeof DEFAULT_COMPANY_FILENAME // OCT8: digital coworker file (ADR-008)
+  | typeof DEFAULT_ROLE_PROFILE_FILENAME // OCT8: digital coworker file (ADR-008)
+  | typeof DEFAULT_MANAGER_FILENAME // OCT8: digital coworker file (ADR-008)
+  | typeof DEFAULT_TEAM_FILENAME // OCT8: digital coworker file (ADR-008)
+  | typeof DEFAULT_CONTACTS_FILENAME; // OCT8: digital coworker file (ADR-008)
 
 export type WorkspaceBootstrapFile = {
   name: WorkspaceBootstrapFileName;
@@ -176,6 +186,11 @@ const VALID_BOOTSTRAP_NAMES: ReadonlySet<string> = new Set([
   DEFAULT_BOOTSTRAP_FILENAME,
   DEFAULT_MEMORY_FILENAME,
   DEFAULT_MEMORY_ALT_FILENAME,
+  DEFAULT_COMPANY_FILENAME, // OCT8: digital coworker file (ADR-008)
+  DEFAULT_ROLE_PROFILE_FILENAME, // OCT8: digital coworker file (ADR-008)
+  DEFAULT_MANAGER_FILENAME, // OCT8: digital coworker file (ADR-008)
+  DEFAULT_TEAM_FILENAME, // OCT8: digital coworker file (ADR-008)
+  DEFAULT_CONTACTS_FILENAME, // OCT8: digital coworker file (ADR-008)
 ]);
 
 async function writeFileIfMissing(filePath: string, content: string): Promise<boolean> {
@@ -487,30 +502,35 @@ async function resolveMemoryBootstrapEntry(
 export async function loadWorkspaceBootstrapFiles(dir: string): Promise<WorkspaceBootstrapFile[]> {
   const resolvedDir = resolveUserPath(dir);
 
+  // OCT8: file order follows ADR-008 hierarchy (identity → context → people → operations → memory)
   const entries: Array<{
     name: WorkspaceBootstrapFileName;
     filePath: string;
   }> = [
-    {
-      name: DEFAULT_AGENTS_FILENAME,
-      filePath: path.join(resolvedDir, DEFAULT_AGENTS_FILENAME),
-    },
-    {
-      name: DEFAULT_SOUL_FILENAME,
-      filePath: path.join(resolvedDir, DEFAULT_SOUL_FILENAME),
-    },
-    {
-      name: DEFAULT_TOOLS_FILENAME,
-      filePath: path.join(resolvedDir, DEFAULT_TOOLS_FILENAME),
-    },
+    // Identity (primacy position)
+    { name: DEFAULT_SOUL_FILENAME, filePath: path.join(resolvedDir, DEFAULT_SOUL_FILENAME) },
     {
       name: DEFAULT_IDENTITY_FILENAME,
       filePath: path.join(resolvedDir, DEFAULT_IDENTITY_FILENAME),
     },
+    // Company & role context
+    { name: DEFAULT_COMPANY_FILENAME, filePath: path.join(resolvedDir, DEFAULT_COMPANY_FILENAME) },
     {
-      name: DEFAULT_USER_FILENAME,
-      filePath: path.join(resolvedDir, DEFAULT_USER_FILENAME),
+      name: DEFAULT_ROLE_PROFILE_FILENAME,
+      filePath: path.join(resolvedDir, DEFAULT_ROLE_PROFILE_FILENAME),
     },
+    // People
+    { name: DEFAULT_MANAGER_FILENAME, filePath: path.join(resolvedDir, DEFAULT_MANAGER_FILENAME) },
+    { name: DEFAULT_TEAM_FILENAME, filePath: path.join(resolvedDir, DEFAULT_TEAM_FILENAME) },
+    { name: DEFAULT_USER_FILENAME, filePath: path.join(resolvedDir, DEFAULT_USER_FILENAME) },
+    // Operations
+    { name: DEFAULT_AGENTS_FILENAME, filePath: path.join(resolvedDir, DEFAULT_AGENTS_FILENAME) },
+    { name: DEFAULT_TOOLS_FILENAME, filePath: path.join(resolvedDir, DEFAULT_TOOLS_FILENAME) },
+    {
+      name: DEFAULT_CONTACTS_FILENAME,
+      filePath: path.join(resolvedDir, DEFAULT_CONTACTS_FILENAME),
+    },
+    // Periodic & temporary
     {
       name: DEFAULT_HEARTBEAT_FILENAME,
       filePath: path.join(resolvedDir, DEFAULT_HEARTBEAT_FILENAME),
@@ -519,6 +539,7 @@ export async function loadWorkspaceBootstrapFiles(dir: string): Promise<Workspac
       name: DEFAULT_BOOTSTRAP_FILENAME,
       filePath: path.join(resolvedDir, DEFAULT_BOOTSTRAP_FILENAME),
     },
+    // Memory appended below via resolveMemoryBootstrapEntry (recency position)
   ];
 
   const memoryEntry = await resolveMemoryBootstrapEntry(resolvedDir);
@@ -552,6 +573,8 @@ const MINIMAL_BOOTSTRAP_ALLOWLIST = new Set([
   DEFAULT_SOUL_FILENAME,
   DEFAULT_IDENTITY_FILENAME,
   DEFAULT_USER_FILENAME,
+  DEFAULT_COMPANY_FILENAME, // OCT8: subagents need company context (ADR-008)
+  DEFAULT_ROLE_PROFILE_FILENAME, // OCT8: subagents need role context (ADR-008)
 ]);
 
 export function filterBootstrapFilesForSession(

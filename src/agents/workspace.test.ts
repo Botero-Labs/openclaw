@@ -66,9 +66,14 @@ function expectSubagentAllowedBootstrapNames(files: WorkspaceBootstrapFile[]) {
   expect(names).toContain("SOUL.md");
   expect(names).toContain("IDENTITY.md");
   expect(names).toContain("USER.md");
+  expect(names).toContain("COMPANY.md"); // OCT8: subagents need company context (ADR-008)
+  expect(names).toContain("ROLE_PROFILE.md"); // OCT8: subagents need role context (ADR-008)
   expect(names).not.toContain("HEARTBEAT.md");
   expect(names).not.toContain("BOOTSTRAP.md");
   expect(names).not.toContain("MEMORY.md");
+  expect(names).not.toContain("MANAGER.md"); // OCT8: not needed for subtasks
+  expect(names).not.toContain("TEAM.md"); // OCT8: not needed for subtasks
+  expect(names).not.toContain("CONTACTS.md"); // OCT8: not needed for subtasks
 }
 
 describe("ensureAgentWorkspace", () => {
@@ -247,11 +252,16 @@ describe("loadWorkspaceBootstrapFiles", () => {
 
 describe("filterBootstrapFilesForSession", () => {
   const mockFiles: WorkspaceBootstrapFile[] = [
-    { name: "AGENTS.md", path: "/w/AGENTS.md", content: "", missing: false },
     { name: "SOUL.md", path: "/w/SOUL.md", content: "", missing: false },
-    { name: "TOOLS.md", path: "/w/TOOLS.md", content: "", missing: false },
     { name: "IDENTITY.md", path: "/w/IDENTITY.md", content: "", missing: false },
+    { name: "COMPANY.md", path: "/w/COMPANY.md", content: "", missing: false }, // OCT8
+    { name: "ROLE_PROFILE.md", path: "/w/ROLE_PROFILE.md", content: "", missing: false }, // OCT8
+    { name: "MANAGER.md", path: "/w/MANAGER.md", content: "", missing: false }, // OCT8
+    { name: "TEAM.md", path: "/w/TEAM.md", content: "", missing: false }, // OCT8
     { name: "USER.md", path: "/w/USER.md", content: "", missing: false },
+    { name: "AGENTS.md", path: "/w/AGENTS.md", content: "", missing: false },
+    { name: "TOOLS.md", path: "/w/TOOLS.md", content: "", missing: false },
+    { name: "CONTACTS.md", path: "/w/CONTACTS.md", content: "", missing: false }, // OCT8
     { name: "HEARTBEAT.md", path: "/w/HEARTBEAT.md", content: "", missing: false },
     { name: "BOOTSTRAP.md", path: "/w/BOOTSTRAP.md", content: "", missing: false },
     { name: "MEMORY.md", path: "/w/MEMORY.md", content: "", missing: false },
