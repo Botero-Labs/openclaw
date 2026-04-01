@@ -1,0 +1,107 @@
+{
+  "id": "oct8-google-workspace",
+  "name": "oct8 Google Workspace",
+  "description": "Google Workspace tools (Gmail, Calendar, Drive, Contacts, Sheets, Docs) for oct8 digital coworkers with policy enforcement.",
+  "skills": ["./skills"],
+  "contracts": {
+    "tools": [
+      "gmail_search_threads",
+      "gmail_search_messages",
+      "gmail_get_thread",
+      "gmail_get_message",
+      "gmail_create_draft",
+      "gmail_update_draft",
+      "gmail_send",
+      "gmail_list_labels",
+      "calendar_list_calendars",
+      "calendar_list_events",
+      "calendar_get_event",
+      "calendar_create_event",
+      "calendar_update_event",
+      "calendar_delete_event",
+      "calendar_check_availability",
+      "drive_search_files",
+      "drive_get_file",
+      "drive_download_file",
+      "drive_upload_file",
+      "drive_export_file",
+      "contacts_list",
+      "contacts_search",
+      "contacts_get",
+      "contacts_create",
+      "contacts_update",
+      "sheets_get_metadata",
+      "sheets_read_range",
+      "sheets_write_range",
+      "sheets_append_rows",
+      "sheets_clear_range",
+      "docs_read_document",
+      "docs_export_document"
+    ]
+  },
+  "uiHints": {
+    "credentials.clientSecret": {
+      "label": "OAuth Client Secret",
+      "help": "Google OAuth client secret. Provisioned by the oct8 platform via Vault.",
+      "sensitive": true
+    },
+    "credentials.refreshToken": {
+      "label": "OAuth Refresh Token",
+      "help": "Google OAuth refresh token. Provisioned by the oct8 platform via Vault.",
+      "sensitive": true
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "credentials": {
+        "type": "object",
+        "required": ["clientId", "clientSecret", "refreshToken", "email"],
+        "additionalProperties": false,
+        "properties": {
+          "clientId": { "type": ["string", "object"] },
+          "clientSecret": { "type": ["string", "object"] },
+          "refreshToken": { "type": ["string", "object"] },
+          "email": { "type": "string" }
+        }
+      },
+      "services": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "required": ["service", "email", "mode"],
+          "additionalProperties": false,
+          "properties": {
+            "service": {
+              "type": "string",
+              "enum": ["mail", "calendar", "drive", "contacts", "sheets", "docs"]
+            },
+            "email": { "type": "string" },
+            "mode": {
+              "type": "string",
+              "enum": ["delegated_human", "agent_owned"]
+            },
+            "allowedAgents": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "allowedActions": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      },
+      "pubsub": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "gcpProject": { "type": "string" },
+          "topic": { "type": "string" }
+        }
+      }
+    }
+  }
+}
