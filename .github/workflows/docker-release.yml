@@ -3,7 +3,7 @@ name: Docker Release
 on:
   push:
     tags:
-      - "v*"
+      - "v2???.*"  # Only upstream version tags (v2026.x.x), not oct8 semver (v0.x.x)
     paths-ignore:
       - "docs/**"
       - "**/*.md"
