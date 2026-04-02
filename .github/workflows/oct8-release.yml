@@ -1,0 +1,56 @@
+name: oct8 Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: oct8-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "24.x"
+  PNPM_VERSION: "10.23.0"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          pnpm-version: ${{ env.PNPM_VERSION }}
+          install-bun: "false"
+          use-sticky-disk: "false"
+
+      - name: Verify version matches tag
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          PKG_VERSION=$(node -e "import('node:fs').then(fs => { const p = JSON.parse(fs.readFileSync('package.json', 'utf8')); console.log(p.version); })")
+          if [[ "$TAG_VERSION" != "$PKG_VERSION" ]]; then
+            echo "Tag v$TAG_VERSION does not match package.json version $PKG_VERSION"
+            exit 1
+          fi
+          echo "Publishing @botero-labs/oct8@$PKG_VERSION"
+
+      - name: Build
+        run: pnpm build
+
+      - name: Configure npm for GitHub Packages
+        run: |
+          echo "@botero-labs:registry=https://npm.pkg.github.com" >> .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
+
+      - name: Publish
+        run: npm publish

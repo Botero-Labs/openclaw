@@ -1,17 +1,17 @@
 {
-  "name": "openclaw",
-  "version": "2026.3.27",
-  "description": "Multi-channel AI gateway with extensible messaging integrations",
+  "name": "@botero-labs/oct8",
+  "version": "0.1.0",
+  "description": "oct8 digital coworker runtime — multi-channel AI gateway with extensible messaging integrations",
   "keywords": [],
-  "homepage": "https://github.com/openclaw/openclaw#readme",
+  "homepage": "https://github.com/Botero-Labs/openclaw#readme",
   "bugs": {
-    "url": "https://github.com/openclaw/openclaw/issues"
+    "url": "https://github.com/Botero-Labs/openclaw/issues"
   },
   "license": "MIT",
-  "author": "",
+  "author": "Botero Labs <dan@boterolabs.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openclaw/openclaw.git"
+    "url": "git+https://github.com/Botero-Labs/openclaw.git"
   },
   "bin": {
     "openclaw": "openclaw.mjs"
@@ -30,6 +30,7 @@
     "docs/",
     "!docs/.generated/**",
     "!docs/.i18n/zh-CN.tm.jsonl",
+    "oct8-templates/",
     "skills/"
   ],
   "type": "module",
@@ -990,6 +991,9 @@
     },
     "./extension-api": "./dist/extensionAPI.js",
     "./cli-entry": "./openclaw.mjs"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
     "android:assemble": "cd apps/android && ./gradlew :app:assemblePlayDebug",
