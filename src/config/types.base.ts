@@ -193,6 +193,28 @@ export type DiagnosticsOtelConfig = {
   flushIntervalMs?: number;
 };
 
+export type DiagnosticsOct8Config = {
+  enabled?: boolean;
+  /** Base oct8 API URL, for example https://api.example.com */
+  baseUrl?: string;
+  orgId?: string;
+  coworkerId?: string;
+  gatewayId?: string;
+  deploymentTargetId?: string;
+  /** Flush interval for background batch delivery (ms). */
+  flushIntervalMs?: number;
+  /** Maximum queued items per ingest request. Must stay within platform ingest limits. */
+  maxBatchSize?: number;
+  /** Maximum in-memory queue size before oldest items are evicted. */
+  maxQueueSize?: number;
+  /** HTTP request timeout for ingest delivery (ms). */
+  requestTimeoutMs?: number;
+  /** Base retry backoff after transient failures (ms). */
+  retryBaseMs?: number;
+  /** Maximum retry backoff after transient failures (ms). */
+  retryMaxMs?: number;
+};
+
 export type DiagnosticsCacheTraceConfig = {
   enabled?: boolean;
   filePath?: string;
@@ -208,6 +230,7 @@ export type DiagnosticsConfig = {
   /** Threshold in ms before a processing session logs "stuck session" diagnostics. */
   stuckSessionWarnMs?: number;
   otel?: DiagnosticsOtelConfig;
+  oct8?: DiagnosticsOct8Config;
   cacheTrace?: DiagnosticsCacheTraceConfig;
 };
 

@@ -121,6 +121,7 @@ const LOCAL_EXTENSION_API_BARREL_GUARDS = [
   "bluebubbles",
   "device-pair",
   "diagnostics-otel",
+  "diagnostics-oct8",
   "discord",
   "diffs",
   "feishu",

@@ -5,6 +5,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { SessionEntry } from "../../config/sessions.js";
 import * as sessions from "../../config/sessions.js";
 import type { TypingMode } from "../../config/types.js";
+import {
+  onDiagnosticEvent,
+  resetDiagnosticEventsForTest,
+  type DiagnosticUsageEvent,
+} from "../../infra/diagnostic-events.js";
 import { withStateDirEnv } from "../../test-helpers/state-dir-env.js";
 import type { TemplateContext } from "../templating.js";
 import type { GetReplyOptions } from "../types.js";
@@ -108,6 +113,7 @@ beforeEach(() => {
   vi.mocked(enqueueFollowupRun).mockClear();
   vi.mocked(refreshQueuedFollowupSession).mockClear();
   vi.mocked(scheduleFollowupDrain).mockClear();
+  resetDiagnosticEventsForTest();
   vi.stubEnv("OPENCLAW_TEST_FAST", "1");
 });
 
@@ -1467,6 +1473,49 @@ describe("runReplyAgent typing (heartbeat)", () => {
       throw new Error("expected payload");
     }
     expect(payload.text).toContain("/new");
+  });
+
+  it("emits model.usage diagnostics with runId when diagnostics are enabled", async () => {
+    const seen: DiagnosticUsageEvent[] = [];
+    const stop = onDiagnosticEvent((event) => {
+      if (event.type === "model.usage") {
+        seen.push(event);
+      }
+    });
+
+    state.runEmbeddedPiAgentMock.mockImplementationOnce(async () => ({
+      payloads: [{ text: "hello world" }],
+      meta: {
+        agentMeta: {
+          usage: { input: 12, output: 4, total: 16 },
+          provider: "anthropic",
+          model: "claude-sonnet",
+        },
+      },
+    }));
+
+    try {
+      const { run } = createMinimalRun({
+        runOverrides: {
+          config: {
+            diagnostics: { enabled: true },
+          },
+        },
+      });
+      await run();
+    } finally {
+      stop();
+    }
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({
+      type: "model.usage",
+      provider: "anthropic",
+      model: "claude-sonnet",
+      usage: { input: 12, output: 4, total: 16 },
+      runId: expect.any(String),
+    });
+    expect(seen[0]?.runId).toBeTruthy();
   });
 
   it("resets the session after role ordering payloads", async () => {

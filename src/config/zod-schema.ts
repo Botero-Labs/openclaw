@@ -295,6 +295,48 @@ export const OpenClawSchema = z
           })
           .strict()
           .optional(),
+        oct8: z
+          .object({
+            enabled: z.boolean().optional(),
+            baseUrl: HttpUrlSchema.optional(),
+            orgId: z.string().uuid().optional(),
+            coworkerId: z.string().uuid().optional(),
+            gatewayId: z.string().uuid().optional(),
+            deploymentTargetId: z.string().uuid().optional(),
+            flushIntervalMs: z.number().int().positive().optional(),
+            maxBatchSize: z.number().int().min(1).max(500).optional(),
+            maxQueueSize: z.number().int().positive().optional(),
+            requestTimeoutMs: z.number().int().positive().optional(),
+            retryBaseMs: z.number().int().positive().optional(),
+            retryMaxMs: z.number().int().positive().optional(),
+          })
+          .strict()
+          .superRefine((value, ctx) => {
+            if (
+              value.maxBatchSize !== undefined &&
+              value.maxQueueSize !== undefined &&
+              value.maxQueueSize < value.maxBatchSize
+            ) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["maxQueueSize"],
+                message: "maxQueueSize must be greater than or equal to maxBatchSize",
+              });
+            }
+
+            if (
+              value.retryBaseMs !== undefined &&
+              value.retryMaxMs !== undefined &&
+              value.retryMaxMs < value.retryBaseMs
+            ) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["retryMaxMs"],
+                message: "retryMaxMs must be greater than or equal to retryBaseMs",
+              });
+            }
+          })
+          .optional(),
         cacheTrace: z
           .object({
             enabled: z.boolean().optional(),
