@@ -66,6 +66,18 @@ describe("version resolution", () => {
     });
   });
 
+  it("accepts the fork package name for version resolution", async () => {
+    await withTempDir(async (root) => {
+      await writeJsonFixture(root, "package.json", {
+        name: "@botero-labs/oct8",
+        version: "2026.3.27",
+      });
+      const moduleUrl = await ensureModuleFixture(root);
+      expect(readVersionFromPackageJsonForModuleUrl(moduleUrl)).toBe("2026.3.27");
+      expect(resolveVersionFromModuleUrl(moduleUrl)).toBe("2026.3.27");
+    });
+  });
+
   it("falls back to build-info when package metadata is unavailable", async () => {
     await withTempDir(async (root) => {
       await writeJsonFixture(root, "build-info.json", { version: "4.5.6" });
