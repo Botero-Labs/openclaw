@@ -1115,6 +1115,30 @@ export const GENERATED_BUNDLED_PLUGIN_METADATA = [
     },
   },
   {
+    dirName: "diagnostics-oct8",
+    idHint: "diagnostics-oct8",
+    source: {
+      source: "./index.ts",
+      built: "index.js",
+    },
+    publicSurfaceArtifacts: ["api.js"],
+    packageName: "@openclaw/diagnostics-oct8",
+    packageVersion: "2026.3.27",
+    packageDescription: "OpenClaw oct8 observability publisher",
+    packageManifest: {
+      extensions: ["./index.ts"],
+    },
+    manifest: {
+      id: "diagnostics-oct8",
+      configSchema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {},
+      },
+      enabledByDefault: true,
+    },
+  },
+  {
     dirName: "diagnostics-otel",
     idHint: "diagnostics-otel",
     source: {

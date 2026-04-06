@@ -615,6 +615,7 @@ export async function runReplyAgent(params: {
       const costUsd = estimateUsageCost({ usage, cost: costConfig });
       emitDiagnosticEvent({
         type: "model.usage",
+        runId,
         sessionKey,
         sessionId: followupRun.run.sessionId,
         channel: replyToChannel,

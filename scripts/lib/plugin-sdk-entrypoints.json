@@ -75,6 +75,7 @@
   "device-bootstrap",
   "diagnostic-runtime",
   "diagnostics-otel",
+  "diagnostics-oct8",
   "diffs",
   "discord",
   "discord-account",

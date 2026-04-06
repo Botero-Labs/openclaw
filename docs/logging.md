@@ -344,6 +344,45 @@ Queues + sessions:
   to OTLP logs.
 - High-volume installs should prefer OTLP collector sampling/filtering.
 
+### Export coworker observability to oct8
+
+OpenClaw can also publish a narrow coworker observability feed to oct8 via the
+bundled `diagnostics-oct8` service. This publisher is off by default and only
+starts when both `diagnostics.enabled` and `diagnostics.oct8.enabled` are true.
+
+```json
+{
+  "diagnostics": {
+    "enabled": true,
+    "oct8": {
+      "enabled": true,
+      "baseUrl": "https://oct8.example.com",
+      "orgId": "11111111-1111-4111-8111-111111111111",
+      "coworkerId": "22222222-2222-4222-8222-222222222222",
+      "gatewayId": "33333333-3333-4333-8333-333333333333",
+      "deploymentTargetId": "44444444-4444-4444-8444-444444444444"
+    }
+  }
+}
+```
+
+Notes:
+
+- The service publishes only semantic agent events (`lifecycle`, `tool`,
+  `compaction`) plus `model.usage` diagnostics.
+- Assistant stream deltas, reasoning deltas, and webhook/session/queue
+  diagnostics are not sent to oct8.
+- Requests go to
+  `POST /v1/coworkers/:coworkerId/observability/ingest` using the current
+  gateway bearer token. If gateway auth does not resolve to token mode, the
+  oct8 publisher stays disabled and logs a warning.
+- `baseUrl`, `orgId`, `coworkerId`, `gatewayId`, and `deploymentTargetId` are
+  deployment-specific values that must be injected by the platform/runtime
+  environment.
+- Optional tuning knobs are available under `diagnostics.oct8`:
+  `flushIntervalMs`, `maxBatchSize`, `maxQueueSize`, `requestTimeoutMs`,
+  `retryBaseMs`, and `retryMaxMs`.
+
 ## Troubleshooting tips
 
 - **Gateway not reachable?** Run `openclaw doctor` first.

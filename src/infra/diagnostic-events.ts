@@ -9,6 +9,7 @@ type DiagnosticBaseEvent = {
 
 export type DiagnosticUsageEvent = DiagnosticBaseEvent & {
   type: "model.usage";
+  runId?: string;
   sessionKey?: string;
   sessionId?: string;
   channel?: string;
