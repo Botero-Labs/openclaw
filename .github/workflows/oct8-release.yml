@@ -1,0 +1,164 @@
+name: oct8 Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+concurrency:
+  group: oct8-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "24.x"
+  PNPM_VERSION: "10.23.0"
+  AWS_REGION: "us-east-1"
+  S3_BUCKET: "oct8-packages"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          pnpm-version: ${{ env.PNPM_VERSION }}
+          install-bun: "false"
+          use-sticky-disk: "false"
+
+      - name: Verify version matches tag
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          PKG_VERSION=$(node -e "import('node:fs').then(fs => { const p = JSON.parse(fs.readFileSync('package.json', 'utf8')); console.log(p.version); })")
+          if [[ "$TAG_VERSION" != "$PKG_VERSION" ]]; then
+            echo "Tag v$TAG_VERSION does not match package.json version $PKG_VERSION"
+            exit 1
+          fi
+          echo "Publishing @botero-labs/oct8@$PKG_VERSION"
+
+      - name: Report preflight package version
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          set -euo pipefail
+          PKG_VERSION=$(node -e "import('node:fs').then(fs => { const p = JSON.parse(fs.readFileSync('package.json', 'utf8')); console.log(p.version); })")
+          echo "Preflighting @botero-labs/oct8@$PKG_VERSION"
+
+      - name: Pack rewritten oct8 tarball
+        id: pack_oct8
+        run: |
+          set -euo pipefail
+          PACK_OUTPUT="$RUNNER_TEMP/npm-pack-output.txt"
+          npm pack --json 2>&1 | tee "$PACK_OUTPUT"
+          RAW_TARBALL=$(node - "$PACK_OUTPUT" <<'NODE'
+          const fs = require("node:fs");
+          const input = fs.readFileSync(process.argv[2], "utf8");
+          function arrayEndFrom(start) {
+            let depth = 0;
+            let inString = false;
+            let escape = false;
+            for (let i = start; i < input.length; i += 1) {
+              const char = input[i];
+              if (inString) {
+                if (escape) {
+                  escape = false;
+                } else if (char === "\\") {
+                  escape = true;
+                } else if (char === "\"") {
+                  inString = false;
+                }
+                continue;
+              }
+              if (char === "\"") {
+                inString = true;
+              } else if (char === "[") {
+                depth += 1;
+              } else if (char === "]") {
+                depth -= 1;
+                if (depth === 0) {
+                  return i + 1;
+                }
+              }
+            }
+            return -1;
+          }
+          for (let start = input.indexOf("["); start !== -1; start = input.indexOf("[", start + 1)) {
+            const end = arrayEndFrom(start);
+            if (end === -1) {
+              continue;
+            }
+            try {
+              const parsed = JSON.parse(input.slice(start, end));
+              const first = Array.isArray(parsed) ? parsed[0] : null;
+              if (first && typeof first.filename === "string" && first.filename) {
+                process.stdout.write(first.filename);
+                process.exit(0);
+              }
+            } catch {
+              // keep scanning
+            }
+          }
+          process.exit(1);
+          NODE
+          )
+          VERSION=$(node -p "require('./package.json').version")
+          OCT8_TARBALL="oct8-${VERSION}.tgz"
+          node scripts/rewrite-packed-tarball.mjs \
+            --input "$RAW_TARBALL" \
+            --output "$OCT8_TARBALL"
+          shasum -a 256 "$OCT8_TARBALL" | awk '{print $1}' > "${OCT8_TARBALL}.sha256"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tarball=${OCT8_TARBALL}" >> "$GITHUB_OUTPUT"
+          echo "checksum=${OCT8_TARBALL}.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Configure npm for GitHub Packages
+        run: |
+          echo "@botero-labs:registry=https://npm.pkg.github.com" >> .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
+
+      - name: Verify rewritten oct8 artifact
+        run: node scripts/verify-packed-oct8-artifact.mjs --tarball "./${{ steps.pack_oct8.outputs.tarball }}"
+
+      - name: Upload rewritten oct8 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: oct8-rewritten-${{ steps.pack_oct8.outputs.version }}
+          path: |
+            ${{ steps.pack_oct8.outputs.tarball }}
+            ${{ steps.pack_oct8.outputs.checksum }}
+          if-no-files-found: error
+
+      - name: Publish
+        if: ${{ github.event_name == 'push' }}
+        run: npm publish "./${{ steps.pack_oct8.outputs.tarball }}"
+
+      - name: Configure AWS credentials
+        if: ${{ github.event_name == 'push' }}
+        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # v6.0.0
+        with:
+          role-to-assume: ${{ secrets.AWS_RELEASE_ROLE_ARN }}
+          role-session-name: github-actions-oct8-release
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload release bundle to S3
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.pack_oct8.outputs.version }}"
+          TARBALL="${{ steps.pack_oct8.outputs.tarball }}"
+          CHECKSUM="${{ steps.pack_oct8.outputs.checksum }}"
+          aws s3 cp "$TARBALL" "s3://${S3_BUCKET}/releases/oct8-${VERSION}.tgz"
+          aws s3 cp "$CHECKSUM" "s3://${S3_BUCKET}/releases/oct8-${VERSION}.tgz.sha256"
+          printf '%s' "$VERSION" | aws s3 cp - "s3://${S3_BUCKET}/releases/latest-version.txt"

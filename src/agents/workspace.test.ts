@@ -6,10 +6,15 @@ import { makeTempWorkspace, writeWorkspaceFile } from "../test-helpers/workspace
 import {
   DEFAULT_AGENTS_FILENAME,
   DEFAULT_BOOTSTRAP_FILENAME,
+  DEFAULT_COMPANY_FILENAME,
+  DEFAULT_CONTACTS_FILENAME,
   DEFAULT_HEARTBEAT_FILENAME,
   DEFAULT_IDENTITY_FILENAME,
+  DEFAULT_MANAGER_FILENAME,
   DEFAULT_MEMORY_ALT_FILENAME,
   DEFAULT_MEMORY_FILENAME,
+  DEFAULT_ROLE_PROFILE_FILENAME,
+  DEFAULT_TEAM_FILENAME,
   DEFAULT_TOOLS_FILENAME,
   DEFAULT_USER_FILENAME,
   ensureAgentWorkspace,
@@ -47,6 +52,11 @@ async function readWorkspaceState(dir: string): Promise<{
 
 async function expectBootstrapSeeded(dir: string) {
   await expect(fs.access(path.join(dir, DEFAULT_BOOTSTRAP_FILENAME))).resolves.toBeUndefined();
+  await expect(fs.access(path.join(dir, DEFAULT_COMPANY_FILENAME))).resolves.toBeUndefined();
+  await expect(fs.access(path.join(dir, DEFAULT_ROLE_PROFILE_FILENAME))).resolves.toBeUndefined();
+  await expect(fs.access(path.join(dir, DEFAULT_MANAGER_FILENAME))).resolves.toBeUndefined();
+  await expect(fs.access(path.join(dir, DEFAULT_TEAM_FILENAME))).resolves.toBeUndefined();
+  await expect(fs.access(path.join(dir, DEFAULT_CONTACTS_FILENAME))).resolves.toBeUndefined();
   const state = await readWorkspaceState(dir);
   expect(state.bootstrapSeededAt).toMatch(/\d{4}-\d{2}-\d{2}T/);
 }
@@ -67,9 +77,14 @@ function expectSubagentAllowedBootstrapNames(files: WorkspaceBootstrapFile[]) {
   expect(names).toContain("SOUL.md");
   expect(names).toContain("IDENTITY.md");
   expect(names).toContain("USER.md");
+  expect(names).toContain("COMPANY.md");
+  expect(names).toContain("ROLE_PROFILE.md");
   expect(names).not.toContain("HEARTBEAT.md");
   expect(names).not.toContain("BOOTSTRAP.md");
   expect(names).not.toContain("MEMORY.md");
+  expect(names).not.toContain("MANAGER.md");
+  expect(names).not.toContain("TEAM.md");
+  expect(names).not.toContain("CONTACTS.md");
 }
 
 describe("ensureAgentWorkspace", () => {
@@ -180,13 +195,33 @@ describe("ensureAgentWorkspace", () => {
     await ensureAgentWorkspace({ dir: tempDir, ensureBootstrapFiles: true });
 
     const heartbeat = await fs.readFile(path.join(tempDir, DEFAULT_HEARTBEAT_FILENAME), "utf-8");
-    expect(heartbeat).toContain("```markdown");
+    expect(heartbeat).toContain("# HEARTBEAT.md");
+    expect(heartbeat).toContain("<!-- Keep this file empty to skip heartbeat API calls. -->");
     expect(heartbeat).toContain(
-      "# Keep this file empty (or with only comments) to skip heartbeat API calls.",
+      "<!-- Add tasks below when you want to check something periodically. -->",
     );
-    expect(heartbeat).toContain(
-      "# Add tasks below when you want the agent to check something periodically.",
+    expect(heartbeat).toContain("<!-- See AGENTS.md for heartbeat behavior guidelines. -->");
+  });
+
+  it("seeds the oct8 digital coworker bootstrap files into new workspaces", async () => {
+    const tempDir = await makeTempWorkspace("openclaw-workspace-");
+
+    await ensureAgentWorkspace({ dir: tempDir, ensureBootstrapFiles: true });
+
+    const company = await fs.readFile(path.join(tempDir, DEFAULT_COMPANY_FILENAME), "utf-8");
+    const roleProfile = await fs.readFile(
+      path.join(tempDir, DEFAULT_ROLE_PROFILE_FILENAME),
+      "utf-8",
     );
+    const manager = await fs.readFile(path.join(tempDir, DEFAULT_MANAGER_FILENAME), "utf-8");
+    const team = await fs.readFile(path.join(tempDir, DEFAULT_TEAM_FILENAME), "utf-8");
+    const contacts = await fs.readFile(path.join(tempDir, DEFAULT_CONTACTS_FILENAME), "utf-8");
+
+    expect(company).toContain("# COMPANY.md");
+    expect(roleProfile).toContain("# ROLE_PROFILE.md");
+    expect(manager).toContain("# MANAGER.md");
+    expect(team).toContain("# TEAM.md");
+    expect(contacts).toContain("# CONTACTS.md");
   });
 });
 
@@ -229,6 +264,26 @@ describe("loadWorkspaceBootstrapFiles", () => {
     expect(getMemoryEntries(files)).toHaveLength(0);
   });
 
+  it("orders coworker bootstrap files before operational files", async () => {
+    const tempDir = await makeTempWorkspace("openclaw-workspace-");
+
+    const files = await loadWorkspaceBootstrapFiles(tempDir);
+    expect(files.map((file) => file.name)).toEqual([
+      "SOUL.md",
+      "IDENTITY.md",
+      "COMPANY.md",
+      "ROLE_PROFILE.md",
+      "MANAGER.md",
+      "TEAM.md",
+      "USER.md",
+      "AGENTS.md",
+      "TOOLS.md",
+      "CONTACTS.md",
+      "HEARTBEAT.md",
+      "BOOTSTRAP.md",
+    ]);
+  });
+
   it("treats hardlinked bootstrap aliases as missing", async () => {
     if (process.platform === "win32") {
       return;
@@ -263,11 +318,16 @@ describe("loadWorkspaceBootstrapFiles", () => {
 
 describe("filterBootstrapFilesForSession", () => {
   const mockFiles: WorkspaceBootstrapFile[] = [
-    { name: "AGENTS.md", path: "/w/AGENTS.md", content: "", missing: false },
     { name: "SOUL.md", path: "/w/SOUL.md", content: "", missing: false },
-    { name: "TOOLS.md", path: "/w/TOOLS.md", content: "", missing: false },
     { name: "IDENTITY.md", path: "/w/IDENTITY.md", content: "", missing: false },
+    { name: "COMPANY.md", path: "/w/COMPANY.md", content: "", missing: false },
+    { name: "ROLE_PROFILE.md", path: "/w/ROLE_PROFILE.md", content: "", missing: false },
+    { name: "MANAGER.md", path: "/w/MANAGER.md", content: "", missing: false },
+    { name: "TEAM.md", path: "/w/TEAM.md", content: "", missing: false },
     { name: "USER.md", path: "/w/USER.md", content: "", missing: false },
+    { name: "AGENTS.md", path: "/w/AGENTS.md", content: "", missing: false },
+    { name: "TOOLS.md", path: "/w/TOOLS.md", content: "", missing: false },
+    { name: "CONTACTS.md", path: "/w/CONTACTS.md", content: "", missing: false },
     { name: "HEARTBEAT.md", path: "/w/HEARTBEAT.md", content: "", missing: false },
     { name: "BOOTSTRAP.md", path: "/w/BOOTSTRAP.md", content: "", missing: false },
     { name: "MEMORY.md", path: "/w/MEMORY.md", content: "", missing: false },

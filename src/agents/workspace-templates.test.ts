@@ -24,7 +24,27 @@ describe("resolveWorkspaceTemplateDir", () => {
     );
   });
 
-  it("resolves templates from package root when module url is dist-rooted", async () => {
+  it("prefers oct8 templates from package root when module url is dist-rooted", async () => {
+    const root = await makeTempRoot();
+    await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ name: "openclaw" }));
+
+    const oct8TemplatesDir = path.join(root, "oct8-templates");
+    await fs.mkdir(oct8TemplatesDir, { recursive: true });
+    await fs.writeFile(path.join(oct8TemplatesDir, "AGENTS.md"), "# oct8\n");
+
+    const templatesDir = path.join(root, "docs", "reference", "templates");
+    await fs.mkdir(templatesDir, { recursive: true });
+    await fs.writeFile(path.join(templatesDir, "AGENTS.md"), "# ok\n");
+
+    const distDir = path.join(root, "dist");
+    await fs.mkdir(distDir, { recursive: true });
+    const moduleUrl = pathToFileURL(path.join(distDir, "model-selection.mjs")).toString();
+
+    const resolved = await resolveWorkspaceTemplateDir({ cwd: distDir, moduleUrl });
+    expect(resolved).toBe(oct8TemplatesDir);
+  });
+
+  it("falls back to package-root docs path when oct8 templates are missing", async () => {
     const root = await makeTempRoot();
     await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ name: "openclaw" }));
 
@@ -40,7 +60,7 @@ describe("resolveWorkspaceTemplateDir", () => {
     expect(resolved).toBe(templatesDir);
   });
 
-  it("falls back to package-root docs path when templates directory is missing", async () => {
+  it("falls back to bundled oct8 templates before bundled docs templates", async () => {
     const root = await makeTempRoot();
     await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ name: "openclaw" }));
 
@@ -49,6 +69,6 @@ describe("resolveWorkspaceTemplateDir", () => {
     const moduleUrl = pathToFileURL(path.join(distDir, "model-selection.mjs")).toString();
 
     const resolved = await resolveWorkspaceTemplateDir({ cwd: distDir, moduleUrl });
-    expect(path.normalize(resolved)).toBe(path.resolve("docs", "reference", "templates"));
+    expect(path.normalize(resolved)).toBe(path.resolve("oct8-templates"));
   });
 });

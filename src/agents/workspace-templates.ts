@@ -7,6 +7,10 @@ const FALLBACK_TEMPLATE_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../docs/reference/templates",
 );
+const FALLBACK_OCT8_TEMPLATE_DIR = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../oct8-templates",
+);
 
 let cachedTemplateDir: string | undefined;
 let resolvingTemplateDir: Promise<string> | undefined;
@@ -30,8 +34,11 @@ export async function resolveWorkspaceTemplateDir(opts?: {
 
     const packageRoot = await resolveOpenClawPackageRoot({ moduleUrl, argv1, cwd });
     const candidates = [
+      packageRoot ? path.join(packageRoot, "oct8-templates") : null,
       packageRoot ? path.join(packageRoot, "docs", "reference", "templates") : null,
+      cwd ? path.resolve(cwd, "oct8-templates") : null,
       cwd ? path.resolve(cwd, "docs", "reference", "templates") : null,
+      FALLBACK_OCT8_TEMPLATE_DIR,
       FALLBACK_TEMPLATE_DIR,
     ].filter(Boolean) as string[];
 

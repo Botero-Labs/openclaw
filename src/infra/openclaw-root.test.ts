@@ -201,6 +201,14 @@ describe("resolveOpenClawPackageRoot", () => {
       },
     },
     {
+      name: "accepts the published oct8 package name",
+      setup: () => {
+        const pkgRoot = fx("oct8-package-name");
+        setPackageRoot(pkgRoot, "@botero-labs/oct8");
+        return { opts: { cwd: pkgRoot }, expected: pkgRoot };
+      },
+    },
+    {
       name: "falls back from a symlinked argv1 to the node_modules package root",
       setup: () => {
         const project = fx("symlink-node-modules-fallback");

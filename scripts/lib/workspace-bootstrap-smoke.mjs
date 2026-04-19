@@ -11,6 +11,19 @@ export const WORKSPACE_TEMPLATE_PACK_PATHS = [
   "docs/reference/templates/USER.md",
   "docs/reference/templates/HEARTBEAT.md",
   "docs/reference/templates/BOOTSTRAP.md",
+  // OCT8: packaged digital coworker templates must ship with the artifact.
+  "oct8-templates/AGENTS.md",
+  "oct8-templates/SOUL.md",
+  "oct8-templates/TOOLS.md",
+  "oct8-templates/IDENTITY.md",
+  "oct8-templates/USER.md",
+  "oct8-templates/HEARTBEAT.md",
+  "oct8-templates/BOOTSTRAP.md",
+  "oct8-templates/COMPANY.md",
+  "oct8-templates/ROLE_PROFILE.md",
+  "oct8-templates/MANAGER.md",
+  "oct8-templates/TEAM.md",
+  "oct8-templates/CONTACTS.md",
 ];
 
 const REQUIRED_BOOTSTRAP_WORKSPACE_FILES = [
@@ -18,7 +31,13 @@ const REQUIRED_BOOTSTRAP_WORKSPACE_FILES = [
   "SOUL.md",
   "TOOLS.md",
   "IDENTITY.md",
+  // OCT8: brand-new digital coworker workspaces must seed the product-owned context files.
+  "COMPANY.md",
+  "ROLE_PROFILE.md",
+  "MANAGER.md",
+  "TEAM.md",
   "USER.md",
+  "CONTACTS.md",
   "HEARTBEAT.md",
   "BOOTSTRAP.md",
 ];

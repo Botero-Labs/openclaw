@@ -32,6 +32,11 @@ export const DEFAULT_HEARTBEAT_FILENAME = "HEARTBEAT.md";
 export const DEFAULT_BOOTSTRAP_FILENAME = "BOOTSTRAP.md";
 export const DEFAULT_MEMORY_FILENAME = "MEMORY.md";
 export const DEFAULT_MEMORY_ALT_FILENAME = "memory.md";
+export const DEFAULT_COMPANY_FILENAME = "COMPANY.md"; // OCT8: digital coworker file (ADR-008)
+export const DEFAULT_ROLE_PROFILE_FILENAME = "ROLE_PROFILE.md"; // OCT8: digital coworker file (ADR-008)
+export const DEFAULT_MANAGER_FILENAME = "MANAGER.md"; // OCT8: digital coworker file (ADR-008)
+export const DEFAULT_TEAM_FILENAME = "TEAM.md"; // OCT8: digital coworker file (ADR-008)
+export const DEFAULT_CONTACTS_FILENAME = "CONTACTS.md"; // OCT8: digital coworker file (ADR-008)
 const WORKSPACE_STATE_DIRNAME = ".openclaw";
 const WORKSPACE_STATE_FILENAME = "workspace-state.json";
 const WORKSPACE_STATE_VERSION = 1;
@@ -116,7 +121,7 @@ async function loadTemplate(name: string): Promise<string> {
       return stripFrontMatter(content);
     } catch {
       throw new Error(
-        `Missing workspace template: ${name} (${templatePath}). Ensure docs/reference/templates are packaged.`,
+        `Missing workspace template: ${name} (${templatePath}). Ensure oct8-templates or docs/reference/templates are packaged.`,
       );
     }
   })();
@@ -139,7 +144,12 @@ export type WorkspaceBootstrapFileName =
   | typeof DEFAULT_HEARTBEAT_FILENAME
   | typeof DEFAULT_BOOTSTRAP_FILENAME
   | typeof DEFAULT_MEMORY_FILENAME
-  | typeof DEFAULT_MEMORY_ALT_FILENAME;
+  | typeof DEFAULT_MEMORY_ALT_FILENAME
+  | typeof DEFAULT_COMPANY_FILENAME // OCT8: digital coworker file (ADR-008)
+  | typeof DEFAULT_ROLE_PROFILE_FILENAME // OCT8: digital coworker file (ADR-008)
+  | typeof DEFAULT_MANAGER_FILENAME // OCT8: digital coworker file (ADR-008)
+  | typeof DEFAULT_TEAM_FILENAME // OCT8: digital coworker file (ADR-008)
+  | typeof DEFAULT_CONTACTS_FILENAME; // OCT8: digital coworker file (ADR-008)
 
 export type WorkspaceBootstrapFile = {
   name: WorkspaceBootstrapFileName;
@@ -177,6 +187,11 @@ const VALID_BOOTSTRAP_NAMES: ReadonlySet<string> = new Set([
   DEFAULT_BOOTSTRAP_FILENAME,
   DEFAULT_MEMORY_FILENAME,
   DEFAULT_MEMORY_ALT_FILENAME,
+  DEFAULT_COMPANY_FILENAME, // OCT8: digital coworker file (ADR-008)
+  DEFAULT_ROLE_PROFILE_FILENAME, // OCT8: digital coworker file (ADR-008)
+  DEFAULT_MANAGER_FILENAME, // OCT8: digital coworker file (ADR-008)
+  DEFAULT_TEAM_FILENAME, // OCT8: digital coworker file (ADR-008)
+  DEFAULT_CONTACTS_FILENAME, // OCT8: digital coworker file (ADR-008)
 ]);
 
 async function writeFileIfMissing(filePath: string, content: string): Promise<boolean> {
@@ -334,6 +349,11 @@ export async function ensureAgentWorkspace(params?: {
   userPath?: string;
   heartbeatPath?: string;
   bootstrapPath?: string;
+  companyPath?: string;
+  roleProfilePath?: string;
+  managerPath?: string;
+  teamPath?: string;
+  contactsPath?: string;
   identityPathCreated?: boolean;
 }> {
   const rawDir = params?.dir?.trim() ? params.dir.trim() : DEFAULT_AGENT_WORKSPACE_DIR;
@@ -348,13 +368,32 @@ export async function ensureAgentWorkspace(params?: {
   const soulPath = path.join(dir, DEFAULT_SOUL_FILENAME);
   const toolsPath = path.join(dir, DEFAULT_TOOLS_FILENAME);
   const identityPath = path.join(dir, DEFAULT_IDENTITY_FILENAME);
+  const companyPath = path.join(dir, DEFAULT_COMPANY_FILENAME);
+  const roleProfilePath = path.join(dir, DEFAULT_ROLE_PROFILE_FILENAME);
+  const managerPath = path.join(dir, DEFAULT_MANAGER_FILENAME);
+  const teamPath = path.join(dir, DEFAULT_TEAM_FILENAME);
   const userPath = path.join(dir, DEFAULT_USER_FILENAME);
+  const contactsPath = path.join(dir, DEFAULT_CONTACTS_FILENAME);
   const heartbeatPath = path.join(dir, DEFAULT_HEARTBEAT_FILENAME);
   const bootstrapPath = path.join(dir, DEFAULT_BOOTSTRAP_FILENAME);
   const statePath = resolveWorkspaceStatePath(dir);
 
   const isBrandNewWorkspace = await (async () => {
-    const templatePaths = [agentsPath, soulPath, toolsPath, identityPath, userPath, heartbeatPath];
+    // OCT8: include product-owned coworker files so a provisioned workspace
+    // that already has them is not misclassified as brand new.
+    const templatePaths = [
+      agentsPath,
+      soulPath,
+      toolsPath,
+      identityPath,
+      companyPath,
+      roleProfilePath,
+      managerPath,
+      teamPath,
+      userPath,
+      contactsPath,
+      heartbeatPath,
+    ];
     const userContentPaths = [
       path.join(dir, "memory"),
       path.join(dir, DEFAULT_MEMORY_FILENAME),
@@ -378,13 +417,24 @@ export async function ensureAgentWorkspace(params?: {
   const soulTemplate = await loadTemplate(DEFAULT_SOUL_FILENAME);
   const toolsTemplate = await loadTemplate(DEFAULT_TOOLS_FILENAME);
   const identityTemplate = await loadTemplate(DEFAULT_IDENTITY_FILENAME);
+  const companyTemplate = await loadTemplate(DEFAULT_COMPANY_FILENAME);
+  const roleProfileTemplate = await loadTemplate(DEFAULT_ROLE_PROFILE_FILENAME);
+  const managerTemplate = await loadTemplate(DEFAULT_MANAGER_FILENAME);
+  const teamTemplate = await loadTemplate(DEFAULT_TEAM_FILENAME);
   const userTemplate = await loadTemplate(DEFAULT_USER_FILENAME);
+  const contactsTemplate = await loadTemplate(DEFAULT_CONTACTS_FILENAME);
   const heartbeatTemplate = await loadTemplate(DEFAULT_HEARTBEAT_FILENAME);
   await writeFileIfMissing(agentsPath, agentsTemplate);
   await writeFileIfMissing(soulPath, soulTemplate);
   await writeFileIfMissing(toolsPath, toolsTemplate);
   const identityPathCreated = await writeFileIfMissing(identityPath, identityTemplate);
+  // OCT8: digital coworker workspaces must always carry the role/company/people context files.
+  await writeFileIfMissing(companyPath, companyTemplate);
+  await writeFileIfMissing(roleProfilePath, roleProfileTemplate);
+  await writeFileIfMissing(managerPath, managerTemplate);
+  await writeFileIfMissing(teamPath, teamTemplate);
   await writeFileIfMissing(userPath, userTemplate);
+  await writeFileIfMissing(contactsPath, contactsTemplate);
   await writeFileIfMissing(heartbeatPath, heartbeatTemplate);
 
   let state = await readWorkspaceSetupState(statePath);
@@ -457,7 +507,12 @@ export async function ensureAgentWorkspace(params?: {
     soulPath,
     toolsPath,
     identityPath,
+    companyPath,
+    roleProfilePath,
+    managerPath,
+    teamPath,
     userPath,
+    contactsPath,
     heartbeatPath,
     bootstrapPath,
     identityPathCreated,
@@ -487,29 +542,44 @@ async function resolveMemoryBootstrapEntry(
 export async function loadWorkspaceBootstrapFiles(dir: string): Promise<WorkspaceBootstrapFile[]> {
   const resolvedDir = resolveUserPath(dir);
 
+  // OCT8: file order follows ADR-008 hierarchy (identity → context → people → operations → memory)
   const entries: Array<{
     name: WorkspaceBootstrapFileName;
     filePath: string;
   }> = [
+    { name: DEFAULT_SOUL_FILENAME, filePath: path.join(resolvedDir, DEFAULT_SOUL_FILENAME) },
+    {
+      name: DEFAULT_IDENTITY_FILENAME,
+      filePath: path.join(resolvedDir, DEFAULT_IDENTITY_FILENAME),
+    },
+    {
+      name: DEFAULT_COMPANY_FILENAME,
+      filePath: path.join(resolvedDir, DEFAULT_COMPANY_FILENAME),
+    },
+    {
+      name: DEFAULT_ROLE_PROFILE_FILENAME,
+      filePath: path.join(resolvedDir, DEFAULT_ROLE_PROFILE_FILENAME),
+    },
+    {
+      name: DEFAULT_MANAGER_FILENAME,
+      filePath: path.join(resolvedDir, DEFAULT_MANAGER_FILENAME),
+    },
+    { name: DEFAULT_TEAM_FILENAME, filePath: path.join(resolvedDir, DEFAULT_TEAM_FILENAME) },
+    {
+      name: DEFAULT_USER_FILENAME,
+      filePath: path.join(resolvedDir, DEFAULT_USER_FILENAME),
+    },
     {
       name: DEFAULT_AGENTS_FILENAME,
       filePath: path.join(resolvedDir, DEFAULT_AGENTS_FILENAME),
-    },
-    {
-      name: DEFAULT_SOUL_FILENAME,
-      filePath: path.join(resolvedDir, DEFAULT_SOUL_FILENAME),
     },
     {
       name: DEFAULT_TOOLS_FILENAME,
       filePath: path.join(resolvedDir, DEFAULT_TOOLS_FILENAME),
     },
     {
-      name: DEFAULT_IDENTITY_FILENAME,
-      filePath: path.join(resolvedDir, DEFAULT_IDENTITY_FILENAME),
-    },
-    {
-      name: DEFAULT_USER_FILENAME,
-      filePath: path.join(resolvedDir, DEFAULT_USER_FILENAME),
+      name: DEFAULT_CONTACTS_FILENAME,
+      filePath: path.join(resolvedDir, DEFAULT_CONTACTS_FILENAME),
     },
     {
       name: DEFAULT_HEARTBEAT_FILENAME,
@@ -552,6 +622,8 @@ const MINIMAL_BOOTSTRAP_ALLOWLIST = new Set([
   DEFAULT_SOUL_FILENAME,
   DEFAULT_IDENTITY_FILENAME,
   DEFAULT_USER_FILENAME,
+  DEFAULT_COMPANY_FILENAME, // OCT8: subagents need company context (ADR-008)
+  DEFAULT_ROLE_PROFILE_FILENAME, // OCT8: subagents need role context (ADR-008)
 ]);
 
 export function filterBootstrapFilesForSession(

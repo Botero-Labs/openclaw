@@ -5,6 +5,21 @@ import { buildSubagentSystemPrompt } from "./subagent-system-prompt.js";
 import { buildAgentSystemPrompt, buildRuntimeLine } from "./system-prompt.js";
 
 describe("buildAgentSystemPrompt", () => {
+  it("uses the digital coworker identity in full and none prompt modes", () => {
+    const fullPrompt = buildAgentSystemPrompt({
+      workspaceDir: "/tmp/openclaw",
+    });
+    const nonePrompt = buildAgentSystemPrompt({
+      workspaceDir: "/tmp/openclaw",
+      promptMode: "none",
+    });
+
+    expect(fullPrompt).toContain("You are a digital coworker");
+    expect(fullPrompt).toContain("Read SOUL.md, IDENTITY.md, COMPANY.md, ROLE_PROFILE.md");
+    expect(fullPrompt).not.toContain("You are a personal assistant running inside OpenClaw.");
+    expect(nonePrompt).toBe("You are a digital coworker.");
+  });
+
   it("formats owner section for plain, hash, and missing owner lists", () => {
     const cases = typedCases<{
       name: string;

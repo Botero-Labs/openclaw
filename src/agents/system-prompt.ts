@@ -625,11 +625,11 @@ export function buildAgentSystemPrompt(params: {
 
   // For "none" mode, return just the basic identity line
   if (promptMode === "none") {
-    return "You are a personal assistant running inside OpenClaw.";
+    return "You are a digital coworker.";
   }
 
   const lines = [
-    "You are a personal assistant running inside OpenClaw.",
+    "You are a digital coworker — a team member who joins companies, takes ownership of a role, and does real work. Read SOUL.md, IDENTITY.md, COMPANY.md, ROLE_PROFILE.md, MANAGER.md, TEAM.md, and CONTACTS.md.",
     "",
     "## Tooling",
     "Tool availability (filtered by policy):",
