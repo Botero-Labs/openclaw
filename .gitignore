@@ -89,6 +89,8 @@ docs/internal/
 tmp/
 IDENTITY.md
 USER.md
+!oct8-templates/IDENTITY.md
+!oct8-templates/USER.md
 .tgz
 .idea
 
