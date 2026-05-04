@@ -1,4 +1,5 @@
 import { createDraftStreamLoop } from "openclaw/plugin-sdk/channel-lifecycle";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
 import { formatErrorMessage } from "openclaw/plugin-sdk/error-runtime";
 import { deleteSlackMessage, editSlackMessage } from "./actions.js";
 import { SLACK_TEXT_LIMIT } from "./limits.js";
@@ -18,6 +19,7 @@ export type SlackDraftStream = {
 
 export function createSlackDraftStream(params: {
   target: string;
+  cfg: OpenClawConfig;
   token: string;
   accountId?: string;
   maxChars?: number;
@@ -61,12 +63,14 @@ export function createSlackDraftStream(params: {
     try {
       if (streamChannelId && streamMessageId) {
         await edit(streamChannelId, streamMessageId, trimmed, {
+          cfg: params.cfg,
           token: params.token,
           accountId: params.accountId,
         });
         return;
       }
       const sent = await send(params.target, trimmed, {
+        cfg: params.cfg,
         token: params.token,
         accountId: params.accountId,
         threadTs: params.resolveThreadTs?.(),
@@ -108,6 +112,7 @@ export function createSlackDraftStream(params: {
     }
     try {
       await remove(channelId, messageId, {
+        cfg: params.cfg,
         token: params.token,
         accountId: params.accountId,
       });

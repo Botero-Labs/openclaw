@@ -9,8 +9,11 @@ let deliverReplies: typeof import("./replies.js").deliverReplies;
 let resolveSlackThreadTs: typeof import("./replies.js").resolveSlackThreadTs;
 import { deliverSlackSlashReplies } from "./replies.js";
 
+const SLACK_TEST_CFG = { channels: { slack: { botToken: "xoxb-test" } } };
+
 function baseParams(overrides?: Record<string, unknown>) {
   return {
+    cfg: SLACK_TEST_CFG,
     replies: [{ text: "hello" }],
     target: "C123",
     token: "xoxb-test",
@@ -35,7 +38,7 @@ describe("deliverReplies identity passthrough", () => {
     await deliverReplies(baseParams({ identity }));
 
     expect(sendMock).toHaveBeenCalledOnce();
-    expect(sendMock.mock.calls[0][2]).toMatchObject({ identity });
+    expect(sendMock.mock.calls[0][2]).toMatchObject({ cfg: SLACK_TEST_CFG, identity });
   });
 
   it("passes identity to sendMessageSlack for media replies", async () => {

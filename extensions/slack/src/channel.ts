@@ -60,7 +60,7 @@ import { SLACK_TEXT_LIMIT } from "./limits.js";
 import { slackOutbound } from "./outbound-adapter.js";
 import type { SlackProbe } from "./probe.js";
 import { resolveSlackReplyBlocks } from "./reply-blocks.js";
-import { getOptionalSlackRuntime, getSlackRuntime } from "./runtime.js";
+import { getOptionalSlackRuntime } from "./runtime.js";
 import { fetchSlackScopes } from "./scopes.js";
 import { collectSlackSecurityAuditFindings } from "./security-audit.js";
 import { slackSetupAdapter } from "./setup-core.js";
@@ -525,23 +525,18 @@ export const slackPlugin: ChannelPlugin<ResolvedSlackAccount, SlackProbe> = crea
       idLabel: "slackUserId",
       message: PAIRING_APPROVED_MESSAGE,
       normalizeAllowEntry: createPairingPrefixStripper(/^(slack|user):/i),
-      notify: async ({ id, message }) => {
-        const cfg = getSlackRuntime().config.loadConfig();
+      notify: async ({ cfg, id, message }) => {
         const account = resolveSlackAccount({
           cfg,
           accountId: resolveDefaultSlackAccountId(cfg),
         });
         const { sendMessageSlack } = await loadSlackSendRuntime();
         const token = getTokenForOperation(account, "write");
-        const botToken = account.botToken?.trim();
-        const tokenOverride = token && token !== botToken ? token : undefined;
-        if (tokenOverride) {
-          await sendMessageSlack(`user:${id}`, message, {
-            token: tokenOverride,
-          });
-        } else {
-          await sendMessageSlack(`user:${id}`, message);
-        }
+        await sendMessageSlack(`user:${id}`, message, {
+          cfg,
+          accountId: account.accountId,
+          ...(token ? { token } : {}),
+        });
       },
     },
   },

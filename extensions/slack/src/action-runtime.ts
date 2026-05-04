@@ -172,10 +172,8 @@ export async function handleSlackAction(
   const buildActionOpts = (operation: "read" | "write") => {
     const token = getTokenForOperation(operation);
     const tokenOverride = token && token !== botToken ? token : undefined;
-    if (!accountId && !tokenOverride) {
-      return undefined;
-    }
     return {
+      cfg,
       ...(accountId ? { accountId } : {}),
       ...(tokenOverride ? { token: tokenOverride } : {}),
     };
@@ -195,29 +193,21 @@ export async function handleSlackAction(
         removeErrorMessage: "Emoji is required to remove a Slack reaction.",
       });
       if (remove) {
-        if (writeOpts) {
-          await slackActionRuntime.removeSlackReaction(channelId, messageId, emoji, writeOpts);
-        } else {
-          await slackActionRuntime.removeSlackReaction(channelId, messageId, emoji);
-        }
+        await slackActionRuntime.removeSlackReaction(channelId, messageId, emoji, writeOpts);
         return jsonResult({ ok: true, removed: emoji });
       }
       if (isEmpty) {
-        const removed = writeOpts
-          ? await slackActionRuntime.removeOwnSlackReactions(channelId, messageId, writeOpts)
-          : await slackActionRuntime.removeOwnSlackReactions(channelId, messageId);
+        const removed = await slackActionRuntime.removeOwnSlackReactions(
+          channelId,
+          messageId,
+          writeOpts,
+        );
         return jsonResult({ ok: true, removed });
       }
-      if (writeOpts) {
-        await slackActionRuntime.reactSlackMessage(channelId, messageId, emoji, writeOpts);
-      } else {
-        await slackActionRuntime.reactSlackMessage(channelId, messageId, emoji);
-      }
+      await slackActionRuntime.reactSlackMessage(channelId, messageId, emoji, writeOpts);
       return jsonResult({ ok: true, added: emoji });
     }
-    const reactions = readOpts
-      ? await slackActionRuntime.listSlackReactions(channelId, messageId, readOpts)
-      : await slackActionRuntime.listSlackReactions(channelId, messageId);
+    const reactions = await slackActionRuntime.listSlackReactions(channelId, messageId, readOpts);
     return jsonResult({ ok: true, reactions });
   }
 
@@ -328,16 +318,10 @@ export async function handleSlackAction(
         if (!content && !blocks) {
           throw new Error("Slack editMessage requires content or blocks.");
         }
-        if (writeOpts) {
-          await slackActionRuntime.editSlackMessage(channelId, messageId, content ?? "", {
-            ...writeOpts,
-            blocks,
-          });
-        } else {
-          await slackActionRuntime.editSlackMessage(channelId, messageId, content ?? "", {
-            blocks,
-          });
-        }
+        await slackActionRuntime.editSlackMessage(channelId, messageId, content ?? "", {
+          ...writeOpts,
+          blocks,
+        });
         return jsonResult({ ok: true });
       }
       case "deleteMessage": {
@@ -345,11 +329,7 @@ export async function handleSlackAction(
         const messageId = readStringParam(params, "messageId", {
           required: true,
         });
-        if (writeOpts) {
-          await slackActionRuntime.deleteSlackMessage(channelId, messageId, writeOpts);
-        } else {
-          await slackActionRuntime.deleteSlackMessage(channelId, messageId);
-        }
+        await slackActionRuntime.deleteSlackMessage(channelId, messageId, writeOpts);
         return jsonResult({ ok: true });
       }
       case "readMessages": {
