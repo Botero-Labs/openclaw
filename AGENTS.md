@@ -5,6 +5,7 @@ Telegraph style. Root rules only. Read scoped `AGENTS.md` before subtree work.
 ## Start
 
 - Repo: `https://github.com/openclaw/openclaw`
+- Velanir fork: read `VELANIR_OPENCLAW.md` before changing bootstrap files, release packaging, runtime install behavior, or upstream merge-conflict resolution.
 - Replies: repo-root refs only: `extensions/telegram/src/index.ts:80`. No absolute paths, no `~/`.
 - Run docs list first: `pnpm docs:list` if available; read relevant docs only.
 - High-confidence answers only when fixing/triaging: verify source, tests, shipped/current behavior, and dependency contracts before deciding.
