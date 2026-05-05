@@ -22,6 +22,17 @@ clear temporary reason.
 - Preserve the generic `bootstrap-extra-files.allowedBasenames` config seam.
 - Keep the fork branch focused on `velanir/bootstrap-extra-files`.
 
+## Release workflow notes
+
+The Velanir S3 release workflow intentionally keeps package metadata as
+`openclaw` and renames only the uploaded S3 artifact. Its `npm pack --json`
+step must tolerate lifecycle output around the JSON payload; keep that parser
+aligned with OpenClaw's normal npm release workflow if upstream changes it.
+
+The workflow has a manual `workflow_dispatch` tag input so a fixed workflow can
+publish an existing tag after a failed tag-triggered run without deleting or
+recreating the tag.
+
 ## Merge guidance
 
 When updating from upstream OpenClaw, preserve an equivalent opt-in mechanism
